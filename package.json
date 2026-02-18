@@ -1,0 +1,16 @@
+{
+  "name": "date_time",
+  "version": "1.0.0",
+  "description": "Single-file text dating sim for GitHub Pages",
+  "main": "index.html",
+  "scripts": {
+    "test": "node test.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "jsdom": "^28.1.0"
+  }
+}

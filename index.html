@@ -1,0 +1,414 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Coffee Chat: A Tiny Dating Sim</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #121420;
+      --card: #1a2033;
+      --text: #eef2ff;
+      --muted: #b8c0dd;
+      --accent: #7c9bff;
+      --accent-2: #9f7cff;
+      --danger: #ff6d6d;
+      --ok: #7dffa8;
+      --border: #2c3554;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+      background: radial-gradient(circle at top, #20284a 0%, var(--bg) 55%);
+      color: var(--text);
+      display: grid;
+      place-items: center;
+      padding: 16px;
+    }
+
+    .app {
+      width: min(760px, 100%);
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.02), rgba(255, 255, 255, 0)), var(--card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 16px;
+      box-shadow: 0 12px 36px rgba(0, 0, 0, 0.35);
+    }
+
+    h1 {
+      margin: 0 0 8px;
+      font-size: clamp(1.25rem, 4vw, 1.8rem);
+    }
+
+    .meta {
+      margin: 0 0 14px;
+      color: var(--muted);
+      font-size: 0.95rem;
+    }
+
+    .panel {
+      background: rgba(0, 0, 0, 0.2);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 14px;
+      line-height: 1.5;
+      white-space: pre-wrap;
+      min-height: 130px;
+    }
+
+    .choices {
+      margin-top: 12px;
+      display: grid;
+      gap: 10px;
+    }
+
+    button {
+      border: 1px solid #3a4a80;
+      background: linear-gradient(180deg, #2d3b66, #26355f);
+      color: var(--text);
+      font: inherit;
+      padding: 12px 14px;
+      border-radius: 10px;
+      text-align: left;
+      cursor: pointer;
+      touch-action: manipulation;
+    }
+
+    button:hover {
+      border-color: var(--accent);
+    }
+
+    button:active {
+      transform: translateY(1px);
+    }
+
+    .status {
+      margin-top: 10px;
+      color: var(--muted);
+      font-size: 0.95rem;
+    }
+
+    .footer {
+      margin-top: 12px;
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .secondary {
+      background: linear-gradient(180deg, #3d2f66, #322654);
+      border-color: #6247ad;
+    }
+
+    .test-output {
+      margin-top: 12px;
+      background: #0f1220;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 10px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 0.88rem;
+      color: #dbe4ff;
+      white-space: pre-wrap;
+      display: none;
+    }
+
+    .pass {
+      color: var(--ok);
+    }
+
+    .fail {
+      color: var(--danger);
+    }
+
+    @media (max-width: 540px) {
+      .app {
+        border-radius: 12px;
+        padding: 12px;
+      }
+
+      button {
+        width: 100%;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <h1>Coffee Chat</h1>
+    <p class="meta">A tiny PG dating sim. Pick responses and see where the night goes.</p>
+    <section id="story" class="panel" aria-live="polite"></section>
+    <section id="choices" class="choices" aria-label="Choices"></section>
+    <p id="status" class="status"></p>
+    <div class="footer">
+      <button id="restart" class="secondary" type="button">Restart</button>
+    </div>
+    <pre id="testOutput" class="test-output" aria-live="polite"></pre>
+  </main>
+
+  <script>
+    const STORY_DATA_JSON = `{
+      "intro": {
+        "text": "You are a guy meeting __DATE_NAME__ at a cozy cafe.\\n__DATE_NAME__ smirks: \\"You made it. Nice. How wrecked was your day?\\"",
+        "choices": [
+          { "label": "Warm with swagger: \\"Better now. You?\\"", "next": "date_warm", "delta": 2 },
+          { "label": "Sarcastic opener: \\"A total dumpster fire, but a funny one.\\"", "next": "date_funny", "delta": 1 },
+          { "label": "Blunt: \\"Long as hell. I'm tired.\\"", "next": "date_blunt", "delta": -1 }
+        ]
+      },
+      "date_warm": {
+        "text": "__DATE_NAME__ laughs. \\"Damn, smooth. Not bad.\\"\\nShe leans in: \\"So what do you actually do for fun?\\"",
+        "choices": [
+          { "label": "Talk about creative hobbies", "next": "mid_creative", "delta": 2 },
+          { "label": "Flip it: ask her first", "next": "mid_curious", "delta": 1 },
+          { "label": "Admit you mostly doom-scroll", "next": "mid_doom", "delta": -1 }
+        ]
+      },
+      "date_funny": {
+        "text": "__DATE_NAME__ grins. \\"Funny-chaotic is basically my personality.\\"",
+        "choices": [
+          { "label": "Keep the sarcasm playful", "next": "mid_playful", "delta": 1 },
+          { "label": "Switch to genuine interest", "next": "mid_curious", "delta": 2 },
+          { "label": "Complain about everything", "next": "mid_complain", "delta": -2 }
+        ]
+      },
+      "date_blunt": {
+        "text": "__DATE_NAME__ nods slowly. \\"Fair. You wanna reboot this date before it dies?\\"",
+        "choices": [
+          { "label": "Own it and apologize", "next": "mid_recover", "delta": 1 },
+          { "label": "Double down: \\"Nope. This is me.\\"", "next": "mid_complain", "delta": -2 },
+          { "label": "Pivot to music", "next": "mid_music", "delta": 0 }
+        ]
+      },
+      "mid_creative": {
+        "text": "You tell her about making something just for fun. __DATE_NAME__ looks impressed. \\"Okay, that's actually hot.\\"",
+        "choices": [
+          { "label": "Invite her to a weekend market", "next": "ending_great", "delta": 2 },
+          { "label": "Play it cool: maybe sometime", "next": "ending_good", "delta": 1 }
+        ]
+      },
+      "mid_curious": {
+        "text": "__DATE_NAME__ lights up talking about tiny painting projects and terrible puns.",
+        "choices": [
+          { "label": "Fire back with a decent pun", "next": "ending_great", "delta": 2 },
+          { "label": "Tease: \\"That's nerdy as hell\\"", "next": "ending_mixed", "delta": 0 }
+        ]
+      },
+      "mid_doom": {
+        "text": "__DATE_NAME__ shrugs. \\"I mean... same. But we should probably touch grass sometimes.\\"",
+        "choices": [
+          { "label": "Agree and suggest a walk date", "next": "ending_good", "delta": 1 },
+          { "label": "Refuse: \\"Nah, sounds like effort\\"", "next": "ending_bad", "delta": -2 }
+        ]
+      },
+      "mid_playful": {
+        "text": "The banter gets sharp in a good way. You both roast the cafe playlist like unpaid critics.",
+        "choices": [
+          { "label": "Ask for date two directly", "next": "ending_good", "delta": 1 },
+          { "label": "Push one joke too far", "next": "ending_bad", "delta": -2 }
+        ]
+      },
+      "mid_complain": {
+        "text": "The vibe drops hard. __DATE_NAME__ checks her phone. \\"This is getting heavy, dude.\\"",
+        "choices": [
+          { "label": "Reset and soften your tone", "next": "ending_mixed", "delta": 1 },
+          { "label": "Say \\"whatever\\" and bail", "next": "ending_bad", "delta": -2 }
+        ]
+      },
+      "mid_recover": {
+        "text": "__DATE_NAME__ smiles. \\"Thanks for saying that. Most guys just keep digging.\\"",
+        "choices": [
+          { "label": "Ask about her comfort food", "next": "mid_music", "delta": 1 },
+          { "label": "Ask for another shot next weekend", "next": "ending_good", "delta": 1 }
+        ]
+      },
+      "mid_music": {
+        "text": "You swap favorite songs. __DATE_NAME__ sends a playlist named \\"No cringe, mostly.\\"",
+        "choices": [
+          { "label": "Send one back with confidence", "next": "ending_good", "delta": 1 },
+          { "label": "Joke: \\"My taste is objectively superior\\"", "next": "ending_mixed", "delta": 0 }
+        ]
+      },
+      "ending_great": {
+        "ending": true,
+        "text": "__DATE_NAME__ smiles wide. \\"This was fun as hell. Saturday?\\"\\nEnding: Sparks Fly."
+      },
+      "ending_good": {
+        "ending": true,
+        "text": "__DATE_NAME__ bumps your shoulder. \\"Yeah, I'd do this again. Tacos next?\\"\\nEnding: Good Vibes."
+      },
+      "ending_mixed": {
+        "ending": true,
+        "text": "__DATE_NAME__ half-smiles. \\"You're interesting... in a mildly dangerous way.\\"\\nEnding: It's Complicated."
+      },
+      "ending_bad": {
+        "ending": true,
+        "text": "__DATE_NAME__ stands up. \\"You seem alright, but this ain't it for me.\\"\\nEnding: Missed Connection."
+      }
+    }`;
+
+    const DATE_NAMES = ["Riley", "Maya", "Zoey", "Ava", "Nina", "Sofia", "Leah", "Chloe"];
+
+    const state = {
+      currentNode: "intro",
+      chemistry: 0,
+      dateName: "Riley",
+      story: {}
+    };
+
+    const storyEl = document.getElementById("story");
+    const choicesEl = document.getElementById("choices");
+    const statusEl = document.getElementById("status");
+    const restartEl = document.getElementById("restart");
+    const testOutputEl = document.getElementById("testOutput");
+
+    function pickRandomDateName() {
+      const idx = Math.floor(Math.random() * DATE_NAMES.length);
+      return DATE_NAMES[idx];
+    }
+
+    function loadStoryForDateName(name) {
+      const injectedJson = STORY_DATA_JSON.replaceAll("__DATE_NAME__", name);
+      return JSON.parse(injectedJson);
+    }
+
+    function resetGame() {
+      state.dateName = pickRandomDateName();
+      state.story = loadStoryForDateName(state.dateName);
+      state.currentNode = "intro";
+      state.chemistry = 0;
+      render();
+    }
+
+    function applyChoice(choice) {
+      state.chemistry += choice.delta || 0;
+      state.currentNode = choice.next;
+      render();
+    }
+
+    function render() {
+      const node = state.story[state.currentNode];
+      if (!node) {
+        storyEl.textContent = "Scene missing. Please restart.";
+        choicesEl.innerHTML = "";
+        return;
+      }
+
+      storyEl.textContent = node.text;
+      choicesEl.innerHTML = "";
+
+      if (node.ending) {
+        statusEl.textContent = "Final chemistry score: " + state.chemistry;
+        return;
+      }
+
+      statusEl.textContent = "Chemistry: " + state.chemistry;
+      for (const choice of node.choices) {
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.textContent = choice.label;
+        btn.addEventListener("click", () => applyChoice(choice));
+        choicesEl.appendChild(btn);
+      }
+    }
+
+    function runSelfTests() {
+      const lines = [];
+      let passCount = 0;
+      let failCount = 0;
+      const story = loadStoryForDateName("Riley");
+
+      function pass(name) {
+        passCount += 1;
+        lines.push("[PASS] " + name);
+      }
+
+      function fail(name, detail) {
+        failCount += 1;
+        lines.push("[FAIL] " + name + (detail ? " -> " + detail : ""));
+      }
+
+      function assert(name, condition, detail) {
+        if (condition) {
+          pass(name);
+        } else {
+          fail(name, detail);
+        }
+      }
+
+      function simulatePath(path) {
+        let chemistry = 0;
+        let current = "intro";
+        for (const choiceIndex of path) {
+          const node = story[current];
+          if (!node || node.ending || !node.choices || !node.choices[choiceIndex]) {
+            return { error: "invalid path", chemistry, current };
+          }
+          const choice = node.choices[choiceIndex];
+          chemistry += choice.delta || 0;
+          current = choice.next;
+        }
+        return { chemistry, current };
+      }
+
+      const ids = Object.keys(story);
+      assert("Story has at least 10 scenes", ids.length >= 10, "found " + ids.length);
+      assert("Start scene exists", !!story.intro, "missing intro");
+      assert("Date name placeholder replaced", !story.intro.text.includes("__DATE_NAME__"));
+
+      let brokenLinks = 0;
+      for (const [id, node] of Object.entries(story)) {
+        if (!node.ending && Array.isArray(node.choices)) {
+          for (const c of node.choices) {
+            if (!story[c.next]) {
+              brokenLinks += 1;
+              lines.push("Broken link from " + id + " -> " + c.next);
+            }
+          }
+        }
+      }
+      assert("All branch links are valid", brokenLinks === 0, "broken links: " + brokenLinks);
+
+      const greatPath = simulatePath([0, 0, 0]);
+      assert("Great ending path reaches ending_great", greatPath.current === "ending_great", JSON.stringify(greatPath));
+      assert("Great ending path chemistry is positive", greatPath.chemistry > 0, "chemistry=" + greatPath.chemistry);
+
+      const badPath = simulatePath([2, 1, 1]);
+      assert("Bad ending path reaches ending_bad", badPath.current === "ending_bad", JSON.stringify(badPath));
+      assert("Bad ending path chemistry is non-positive", badPath.chemistry <= 0, "chemistry=" + badPath.chemistry);
+
+      resetGame();
+      assert("Render intro shows 3 choices", choicesEl.children.length === 3, "choices=" + choicesEl.children.length);
+      assert("Selected date name is valid", DATE_NAMES.includes(state.dateName), "name=" + state.dateName);
+      applyChoice(state.story.intro.choices[0]);
+      assert("After one choice, node changes", state.currentNode === "date_warm", "node=" + state.currentNode);
+
+      const summary = "Tests complete. Passed: " + passCount + ", Failed: " + failCount;
+      lines.unshift(summary);
+      return {
+        text: lines.join("\n"),
+        passed: failCount === 0
+      };
+    }
+
+    restartEl.addEventListener("click", resetGame);
+    resetGame();
+
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("autotest") === "1") {
+      const result = runSelfTests();
+      testOutputEl.style.display = "block";
+      testOutputEl.className = "test-output " + (result.passed ? "pass" : "fail");
+      testOutputEl.textContent = result.text;
+      console.log(result.text);
+    }
+  </script>
+</body>
+</html>

@@ -143,7 +143,7 @@
 <body>
   <main class="app">
     <h1>Coffee Chat</h1>
-    <p class="meta">A tiny PG dating sim. Pick responses and see where the night goes.</p>
+    <p class="meta">A tiny PG dating sim. Pick responses and see how the date goes.</p>
     <section id="story" class="panel" aria-live="polite"></section>
     <section id="choices" class="choices" aria-label="Choices"></section>
     <p id="status" class="status"></p>
@@ -190,7 +190,7 @@
       "mid_creative": {
         "text": "You tell her about making something just for fun. __DATE_NAME__ looks impressed. \\"Okay, that's actually hot.\\"",
         "choices": [
-          { "label": "Invite her to a weekend market", "next": "ending_great", "delta": 2 },
+          { "label": "Invite her to a weekend market", "next": "confidence_invite", "delta": 1 },
           { "label": "Play it cool: maybe sometime", "next": "ending_good", "delta": 1 }
         ]
       },
@@ -211,7 +211,7 @@
       "mid_playful": {
         "text": "The banter gets sharp in a good way. You both roast the cafe playlist like unpaid critics.",
         "choices": [
-          { "label": "Ask for date two directly", "next": "ending_good", "delta": 1 },
+          { "label": "Ask for date two directly", "next": "confidence_followup", "delta": 1 },
           { "label": "Push one joke too far", "next": "ending_bad", "delta": -2 }
         ]
       },
@@ -232,8 +232,32 @@
       "mid_music": {
         "text": "You swap favorite songs. __DATE_NAME__ sends a playlist named \\"No cringe, mostly.\\"",
         "choices": [
-          { "label": "Send one back with confidence", "next": "ending_good", "delta": 1 },
+          { "label": "Send one back with confidence", "next": "question_google", "delta": 1 },
           { "label": "Joke: \\"My taste is objectively superior\\"", "next": "ending_mixed", "delta": 0 }
+        ]
+      },
+      "confidence_invite": {
+        "text": "__DATE_NAME__ raises an eyebrow. \\"Weekend market, huh? You actually confident enough to plan something good?\\"",
+        "choices": [
+          { "label": "Confident: \\"Yeah. Saturday, 2 PM. I'll handle it.\\"", "next": "ending_great", "delta": 2 },
+          { "label": "Hesitate: \\"Uh... maybe? We can wing it.\\"", "next": "ending_mixed", "delta": -1 },
+          { "label": "Backpedal hard: \\"Never mind, bad idea.\\"", "next": "ending_bad", "delta": -2 }
+        ]
+      },
+      "confidence_followup": {
+        "text": "__DATE_NAME__ smirks. \\"Bold ask. You got confidence, or are you bluffing?\\"",
+        "choices": [
+          { "label": "Own it: \\"I'm confident. Name a day and I'm there.\\"", "next": "ending_good", "delta": 2 },
+          { "label": "Play small: \\"Only if you really want to...\\"", "next": "ending_mixed", "delta": -1 },
+          { "label": "Fold immediately: \\"Forget it, never mind.\\"", "next": "ending_bad", "delta": -2 }
+        ]
+      },
+      "question_google": {
+        "text": "__DATE_NAME__ asks, \\"Random question: best tacos in town?\\"",
+        "choices": [
+          { "label": "Give a real answer and suggest a spot", "next": "ending_good", "delta": 1 },
+          { "label": "Say: \\"Why don't you Google it?\\"", "next": "ending_bad", "delta": -3 },
+          { "label": "Deflect with a lazy joke", "next": "ending_mixed", "delta": -1 }
         ]
       },
       "ending_great": {
@@ -376,13 +400,17 @@
       }
       assert("All branch links are valid", brokenLinks === 0, "broken links: " + brokenLinks);
 
-      const greatPath = simulatePath([0, 0, 0]);
+      const greatPath = simulatePath([0, 0, 0, 0]);
       assert("Great ending path reaches ending_great", greatPath.current === "ending_great", JSON.stringify(greatPath));
       assert("Great ending path chemistry is positive", greatPath.chemistry > 0, "chemistry=" + greatPath.chemistry);
 
       const badPath = simulatePath([2, 1, 1]);
       assert("Bad ending path reaches ending_bad", badPath.current === "ending_bad", JSON.stringify(badPath));
       assert("Bad ending path chemistry is non-positive", badPath.chemistry <= 0, "chemistry=" + badPath.chemistry);
+
+      const googlePath = simulatePath([2, 0, 0, 0, 1]);
+      assert("Google-it path reaches ending_bad", googlePath.current === "ending_bad", JSON.stringify(googlePath));
+      assert("Google-it path lowers chemistry", googlePath.chemistry < 0, "chemistry=" + googlePath.chemistry);
 
       resetGame();
       assert("Render intro shows 3 choices", choicesEl.children.length === 3, "choices=" + choicesEl.children.length);

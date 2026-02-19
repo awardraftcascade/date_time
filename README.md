@@ -33,4 +33,4 @@ You can also run in-page self-tests by opening:
 1. Push this repo to GitHub.
 2. In GitHub repo settings, enable **Pages** and set source to `main` branch (root).
 3. Your game will be available at:
-   - `https://lucashjelle.github.io/date_time/`
+- `https://awardraftcascade.github.io/date_time/`
